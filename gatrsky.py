@@ -7,11 +7,17 @@ from xml.dom import minidom
 if len( sys.argv ) == 2:
     username = sys.argv[1]
     count = '20'
+    updatetime = 30
 elif len( sys.argv ) == 3:
     username = sys.argv[1]
     count = sys.argv[2]
+    updatetime = 30
+elif len( sys.argv ) == 4:
+    username = sys.argv[1]
+    count = sys.argv[2]
+    updatetime = int( sys.argv[3] )
 else:
-    sys.stdout('usage: ./gatrsky.py <username>\n')
+    sys.stdout('usage: ./gatrsky.py <username> <tweet count> <update interval>\n')
 
 url = 'http://twitter.com/statuses/user_timeline.xml?count=' + count + '&id=' + username
 X = 1
@@ -34,8 +40,9 @@ def main(screen):
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_YELLOW)
     curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
-    updatetime = 5
-    autoupdate = True
+    autoupdate = False
+
+    screen.nodelay(1) # so getch doesn't block timer
 
     def add_wrap_text(cell, text, startrow):
         i = 0
@@ -75,6 +82,10 @@ def main(screen):
         # status bar
         statusbar = curses.newwin(1, row_w, size[Y], 0) # at the bottom
         message = 'WATCHING: ' + username + '  |  ' + '# OF TWEETS: ' + count
+        if autoupdate:
+            message += '  |  AUTOUPDATE ON'
+        else:
+            message += '  |  AUTOUPDATE OFF'
         statusbar.addnstr(0, 1, message, row_w - 2)
         statusbar.bkgdset(' ', curses.color_pair(3))
         statusbar.refresh()
@@ -120,12 +131,11 @@ def main(screen):
             if c == ord('h'):
                 # help will go away on next refresh
                 statusbar.clear()
-                helpmessage = 'q: quit | r: refresh | up/down arrows: scroll'
+                helpmessage = 'q: quit | r: refresh | up/down arrows: scroll | a: toggle auto update'
                 statusbar.addnstr(0, 1, helpmessage, row_w - 2)
                 statusbar.refresh()
-            #t = time.time() - time1
             # auto update won't work, loop pauses to poll the keyboard
-            #if t > updatetime and autoupdate == True:
-            #    break
+            if time.time() - time1 > updatetime and autoupdate == True:
+                break
 
 curses.wrapper(main)
