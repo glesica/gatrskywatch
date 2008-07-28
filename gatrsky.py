@@ -11,7 +11,7 @@ elif len( sys.argv ) == 3:
     username = sys.argv[1]
     count = sys.argv[2]
 else:
-    sys.stdout('usage: ./gatrsky <username>\n')
+    sys.stdout('usage: ./gatrsky.py <username>\n')
 
 url = 'http://twitter.com/statuses/user_timeline.xml?count=' + count + '&id=' + username
 X = 1
@@ -30,6 +30,9 @@ def get_entries():
 
 def main(screen):
     oldcurs = curses.curs_set(0)
+    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
     updatetime = 5
     autoupdate = True
@@ -50,13 +53,13 @@ def main(screen):
     def fill_text(cell, text, date):
         cell.clear()
         add_wrap_text(cell, text, 0)
-        add_wrap_text(cell, date, row_h - 1)
+        add_wrap_text(cell, date, row_h - 2)
         cell.refresh()
         cell.overwrite(screen)
 
     def fill_rows():
-        cells[prev_cell].bkgdset(' ', curses.A_NORMAL)
-        cells[sel_cell].bkgdset(' ', curses.A_STANDOUT)
+        cells[prev_cell].bkgdset(' ', curses.color_pair(1))
+        cells[sel_cell].bkgdset(' ', curses.color_pair(2))
         for n, cell in enumerate(cells):
             fill_text(cell, entries[n + estart][0], entries[n + estart][1])
 
@@ -64,14 +67,26 @@ def main(screen):
         # get entries, setup size info
         entries = get_entries()
         size = screen.getmaxyx()
+        size = (size[Y] - 1, size[X]) # take 1 off for the status bar at bottom
         row_w = size[X]
-        row_h = 200 / size[1] + 2 # big number is just a guess, twitter max ~ 140, plus name
+        row_h = 140 / row_w + 3 # max chars for twitter = 140
         row_n = size[Y] / row_h
+
+        # status bar
+        statusbar = curses.newwin(1, row_w, size[Y], 0) # at the bottom
+        message = 'WATCHING: ' + username + '  |  ' + '# OF TWEETS: ' + count
+        statusbar.addnstr(0, 1, message, row_w - 2)
+        statusbar.bkgdset(' ', curses.color_pair(3))
+        statusbar.refresh()
+        statusbar.overwrite(screen)
 
         # list of windows to use for entries
         cells = []
         for r in xrange(row_n):
-            cells.append(curses.newwin(row_h, row_w, r * row_h, 0))
+            if len( cells ) < len( entries ): # dont make too many cells
+                newcell = curses.newwin(row_h, row_w, r * row_h, 0)
+                newcell.bkgdset(' ', curses.color_pair(1))
+                cells.append(newcell)
 
         estart = 0 # first entry to read
         prev_cell = 0
@@ -102,7 +117,13 @@ def main(screen):
                 break
             if c == ord('a'):
                 autoupdate = not autoupdate
-            t = time.time() - time1
+            if c == ord('h'):
+                # help will go away on next refresh
+                statusbar.clear()
+                helpmessage = 'q: quit | r: refresh | up/down arrows: scroll'
+                statusbar.addnstr(0, 1, helpmessage, row_w - 2)
+                statusbar.refresh()
+            #t = time.time() - time1
             # auto update won't work, loop pauses to poll the keyboard
             #if t > updatetime and autoupdate == True:
             #    break
