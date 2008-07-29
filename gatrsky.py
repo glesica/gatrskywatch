@@ -17,14 +17,19 @@ elif len( sys.argv ) == 4:
     count = sys.argv[2]
     updatetime = int( sys.argv[3] )
 else:
-    sys.stdout('usage: ./gatrsky.py <username> <tweet count> <update interval>\n')
+    sys.stdout.write('usage: ./gatrsky.py <username> <tweet count> <update interval>\n')
 
 url = 'http://twitter.com/statuses/user_timeline.xml?count=' + count + '&id=' + username
 X = 1
 Y = 0
+MAX_ATTEMPTS = 10 # number of times to let http request fail before dying
 
 def get_entries():
-    rssfile = urllib2.urlopen(url)
+    try:
+        rssfile = urllib2.urlopen(url)
+    except urllib2.HTTPError:
+        sys.stdout.write('HTTP request failed\n')
+        return []
     xmldoc = minidom.parseString(''.join(rssfile.readlines()))
     tweets = xmldoc.getElementsByTagName('status')
     entries = []
@@ -72,7 +77,14 @@ def main(screen):
 
     while 1:
         # get entries, setup size info
-        entries = get_entries()
+        entries = []
+        attempts = 0
+        while len( entries ) == 0:
+            entries = get_entries()
+            attempts += 1
+            if attempts >= MAX_ATTEMPTS:
+                sys.stderr.write('exceeded max http request attempts')
+                sys.exit()
         size = screen.getmaxyx()
         size = (size[Y] - 1, size[X]) # take 1 off for the status bar at bottom
         row_w = size[X]
@@ -128,6 +140,7 @@ def main(screen):
                 break
             if c == ord('a'):
                 autoupdate = not autoupdate
+                break
             if c == ord('h'):
                 # help will go away on next refresh
                 statusbar.clear()
