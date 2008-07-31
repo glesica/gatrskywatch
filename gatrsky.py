@@ -61,11 +61,12 @@ def main(screen):
             else:
                 row += 1
                 i = 0
+        return row - startrow + 1 # number of rows we used
 
     def fill_text(cell, text, date):
         cell.clear()
-        add_wrap_text(cell, text, 0)
-        add_wrap_text(cell, date, row_h - 2)
+        n_used = add_wrap_text(cell, text, 0)
+        add_wrap_text(cell, date, n_used)
         cell.refresh()
         cell.overwrite(screen)
 
