@@ -1,34 +1,42 @@
+#!/usr/bin/python
+
 import curses
 import urllib2
 import time
 import sys
 from xml.dom import minidom
 
-if len( sys.argv ) == 2:
-    username = sys.argv[1]
-    count = '20'
-    updatetime = 30
-elif len( sys.argv ) == 3:
-    username = sys.argv[1]
-    count = sys.argv[2]
-    updatetime = 30
-elif len( sys.argv ) == 4:
-    username = sys.argv[1]
-    count = sys.argv[2]
-    updatetime = int( sys.argv[3] )
-else:
-    sys.stdout.write('usage: ./gatrsky.py <username> <tweet count> <update interval>\n')
+DEFAULT_COUNT = 20
+DEFAULT_UPDATE_TIME = 120
+MAX_ATTEMPTS = 10 # max time to let http request fail before dying
 
-url = 'http://twitter.com/statuses/user_timeline.xml?count=' + count + '&id=' + username
+# x and y coords for array indexing
 X = 1
 Y = 0
-MAX_ATTEMPTS = 10 # number of times to let http request fail before dying
 
-def get_entries():
+if len( sys.argv ) == 2:
+    username = sys.argv[1]
+    count = DEFAULT_COUNT
+    updatetime = DEFAULT_UPDATE_TIME
+elif len( sys.argv ) == 3:
+    username = sys.argv[1]
+    count = int(sys.argv[2])
+    updatetime = DEFAULT_UPDATE_TIME
+elif len( sys.argv ) == 4:
+    username = sys.argv[1]
+    count = int(sys.argv[2])
+    updatetime = int( sys.argv[3] )
+else:
+    sys.stderr.write('usage: ./gatrsky.py <username> <tweet count> <update interval>\n')
+    sys.exit()
+
+
+def get_entries(user, n=DEFAULT_COUNT):
+    url = 'http://twitter.com/statuses/user_timeline.xml?count=%i&id=%s' % (n, user)
     try:
         rssfile = urllib2.urlopen(url)
     except urllib2.HTTPError:
-        sys.stdout.write('HTTP request failed\n')
+        sys.stderr.write('HTTP request failed\n')
         return []
     xmldoc = minidom.parseString(''.join(rssfile.readlines()))
     tweets = xmldoc.getElementsByTagName('status')
@@ -81,7 +89,7 @@ def main(screen):
         entries = []
         attempts = 0
         while len( entries ) == 0:
-            entries = get_entries()
+            entries = get_entries(username, count)
             attempts += 1
             if attempts >= MAX_ATTEMPTS:
                 sys.stderr.write('exceeded max http request attempts')
@@ -94,7 +102,7 @@ def main(screen):
 
         # status bar
         statusbar = curses.newwin(1, row_w, size[Y], 0) # at the bottom
-        message = 'WATCHING: ' + username + '  |  ' + '# OF TWEETS: ' + count
+        message = 'WATCHING: %s  |  # OF TWEETS: %i' % (username, count)
         if autoupdate:
             message += '  |  AUTOUPDATE ON'
         else:
@@ -148,7 +156,6 @@ def main(screen):
                 helpmessage = 'q: quit | r: refresh | up/down arrows: scroll | a: toggle auto update'
                 statusbar.addnstr(0, 1, helpmessage, row_w - 2)
                 statusbar.refresh()
-            # auto update won't work, loop pauses to poll the keyboard
             if time.time() - time1 > updatetime and autoupdate == True:
                 break
 
