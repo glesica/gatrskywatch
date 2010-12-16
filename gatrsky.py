@@ -44,7 +44,7 @@ def get_entries(user, n=DEFAULT_COUNT):
     for tweet in tweets:
         title = tweet.getElementsByTagName('text')[0].firstChild.data
         date = tweet.getElementsByTagName('created_at')[0].firstChild.data
-        entries.append((title.encode('ascii'), date.encode('ascii')))
+        entries.append((title.encode('ascii', 'replace'), date.encode('ascii', 'replace')))
     return entries
 
 def main(screen):
